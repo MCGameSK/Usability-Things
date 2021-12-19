@@ -1,0 +1,384 @@
+#
+#Github https://github.com/MCGameSK/Usability-Things
+#
+#Farmland Protection
+#Rotten Flesh n Composter
+#Ride Entities
+#Call Player
+#Simple Fill Blocks
+#Elytra Mini Booster
+#Chat Filtering
+#Pearl Riding
+
+
+
+on chat:
+    loop {filter::*}:
+        if message contain loop-value:
+            cancel event
+            message "<%player%> %message%"
+            exit
+
+
+
+on arm swing:
+    if {booster} is true:
+        if gliding state of player is true:
+            push player forward at speed 0.05
+
+
+
+#Farmland Protection
+on fade of wet farmland:
+    if {farmland} is true:
+        cancel event
+
+
+
+on left click:
+    if {fill::%player's uuid%} is true:
+        cancel event
+
+        if {fillPosFirst::%player's uuid%} is not set:
+            set {fillPosFirst::%player's uuid%} to event-location
+            message "&a&o첫번째 좌표: %{fillPosFirst::%player's uuid%}%"
+            message "&e&o좌클릭하여 두번째 좌표를 지정하세요."
+            exit
+        
+        else if {fillPosSecond::%player's uuid%} is not set:
+            set {fillPosSecond::%player's uuid%} to event-location
+            message "&a&o두번째 좌표: %{fillPosSecond::%player's uuid%}%"
+            exit
+
+        else:
+            if {placing::%player's uuid%} is not set:
+                set {placing::%player's uuid%} to true
+
+                if {fillPosFirst::%player's uuid%} is not set:
+                    message "첫번째 좌표를 찾을수 없습니다."
+                    delete {placing::%player's uuid%}
+                    delete {fill::%player's uuid%}
+                    delete {fillPosFirst::%player's uuid%}
+                    delete {fillPosSecond::%player's uuid%}
+                    exit
+                if {fillPosSecond::%player's uuid%} is not set:
+                    message "두번째 좌표를 찾을수 없습니다."
+                    delete {placing::%player's uuid%}
+                    delete {fill::%player's uuid%}
+                    delete {fillPosFirst::%player's uuid%}
+                    delete {fillPosSecond::%player's uuid%}
+                    exit
+                
+                if 1 of player's held item is a block:
+                    set {_block::%player's uuid%} to 1 of player's held item
+                else if 1 of player's held item is a water bucket:
+                    set {_block::%player's uuid%} to water
+                else if 1 of player's held item is a lava bucket:
+                    set {_block::%player's uuid%} to lava
+                else:
+                    message "&c&o설치할수 없는 아이템입니다. &c&l[%1 of player's held item%]"
+                    delete {placing::%player's uuid%}
+                    delete {fill::%player's uuid%}
+                    delete {fillPosFirst::%player's uuid%}
+                    delete {fillPosSecond::%player's uuid%}
+                    exit
+                
+                set {_xSize::%player's uuid%} to abs(x-coord of {fillPosSecond::%player's uuid%} - x-coord of {fillPosFirst::%player's uuid%}) + 1
+                set {_ySize::%player's uuid%} to abs(y-coord of {fillPosSecond::%player's uuid%} - y-coord of {fillPosFirst::%player's uuid%}) + 1
+                set {_zSize::%player's uuid%} to abs(z-coord of {fillPosSecond::%player's uuid%} - z-coord of {fillPosFirst::%player's uuid%}) + 1
+
+                set {_throttle} to 0
+                loop all blocks within {fillPosSecond::%player's uuid%} and {fillPosFirst::%player's uuid%}:
+                    if {placing::%player's uuid%} is set:
+                        set loop-block to {_block::%player's uuid%}
+                    else:
+                        message "&cUtFill 작업을 취소합니다."
+                        exit
+
+                    add 1 to {_throttle}
+                    if {_throttle} > 300:
+                        set {_throttle} to 0
+                        wait for 1 ticks
+
+                message "&a&o성공적으로 %{_xSize::%player's uuid%} * {_ySize::%player's uuid%} * {_zSize::%player's uuid%}%개의 %{_block::%player's uuid%}%을 채웠습니다."
+                delete {placing::%player's uuid%}
+                delete {fill::%player's uuid%}
+                delete {fillPosFirst::%player's uuid%}
+                delete {fillPosSecond::%player's uuid%}
+                exit
+
+
+
+
+on right click:
+    if {composter} is true:
+        if event-block is composter:
+            if 1 of player's tool is rotten flesh:
+                if event-block is not level 7 composter or level 8 composter:
+                    play sound "block.composter.fill_success" with volume 1 at event-block
+                    set block at event-block to level 8 composter
+
+                    set {_rottenFlesh} to player's tool
+                    set {_i} to item amount of {_rottenFlesh} - 1
+                    set player's tool to {_i} of {_rottenFlesh}
+
+                    loop 10 times:
+                        set {_effLoc} to event-location
+                        add random number between -0.5 and 0.5 to x-coord of {_effLoc}
+                        add random number between -0.5 and 0.5 to y-coord of {_effLoc}
+                        add random number between -0.5 and 0.5 to z-coord of {_effLoc}
+                        show composter at {_effLoc}
+    
+
+
+# Ride
+on right click on a entity with priority highest:
+    if {ride} is true:
+        if player is sneaking:
+            if clicked entity is not item frame or glow item frame or armor stand:
+                if player is op:
+                    if item amount of player's tool is 0:
+                        make clicked entity ride player
+        else:
+            if clicked entity is not item frame or glow item frame or villager or armor stand or oak boat or spruce boat or birch boat or jungle boat or acacia boat or dark oak boat:
+                if item amount of player's tool is 0:
+                    make player ride clicked entity
+
+
+
+# Dismount
+on sneak toggle:
+	if passenger of player is set:
+		if player is not sneaking:
+			dismount the passenger from player
+
+
+
+#Pearl Riding
+on shoot:
+    if projectile is ender pearl:
+        if {pearlRide} is set:
+            make shooter ride projectile
+
+
+
+command /utFarmland:
+    trigger:
+        if player is op:
+            if {farmland} is not set:
+                set {farmland} to true
+                message "&e&o이제 젖은 경작지는 밟히지 않습니다."
+            else:
+                delete {farmland}
+                message "&e&o경작지 보호가 꺼졌습니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utRottenFleshComposter:
+    trigger:
+        if player is op:
+            if {composter} is not set:
+                set {composter} to true
+                message "&e&o썩은 고기가 비료통에 들어갑니다."
+            else:
+                delete {composter}
+                message "&e&o썩은 고기가 더이상 비료통에 들어가지 않습니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utRideEntities:
+    trigger:
+        if player is op:
+            if {ride} is not set:
+                set {ride} to true
+                message "&e&o모든 엔티티 탑승을 활성화합니다."
+            else:
+                delete {ride}
+                message "&e&o모든 엔티티 탑승을 비활성화합니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utBooster:
+    trigger:
+        if player is op:
+            if {booster} is not set:
+                set {booster} to true
+                message "&e&o겉날개 이륙 부스터를 활성화합니다."
+            else:
+                delete {booster}
+                message "&e&o겉날개 이륙 부스터를 비활성화합니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /@ [<player>]:
+    trigger:
+        message "&a&o%arg 1%을 호출했습니다."
+        message "&e&o%player%가 호출했습니다." to arg 1
+        send title "&e&l호출" with subtitle "&7%player%의 호출입니다" to arg 1 for 5 seconds
+        play sound "block.note_block.cow_bell" with volume 2 and pitch 1.4 for arg 1
+        wait for 0.1 seconds
+        play sound "block.note_block.cow_bell" with volume 2 and pitch 1.4 for arg 1
+        wait for 0.1 seconds
+        play sound "block.note_block.cow_bell" with volume 2 and pitch 1.4 for arg 1
+
+
+
+command /utFill:
+    trigger:
+        if player is op:
+
+            if {fill::%player's uuid%} is not set:
+                set {fill::%player's uuid%} to true
+                delete {placing::%player's uuid%}
+                delete {fillPosFirst::%player's uuid%}
+                delete {fillPosSecond::%player's uuid%}
+                message "&e&o들고있는 블럭으로 두 좌표 사이를 채웁니다."
+                message "&e&o좌클릭하여 첫번째 좌표를 지정하세요."
+            else:
+                delete {fill::%player's uuid%}
+                delete {placing::%player's uuid%}
+                delete {fillPosFirst::%player's uuid%}
+                delete {fillPosSecond::%player's uuid%}
+                message "&e&oFill 모드를 해제했습니다."
+
+        else:
+            message "&c&oOP required"
+
+
+
+command /utPearlRide:
+    trigger:
+        if player is op:
+            if {pearlRide} is not set:
+                set {pearlRide} to true
+                message "&e&o진주를 던지면 함께 날아갑니다."
+            else:
+                delete {pearlRide}
+                message "&e&o진주 탑승을 비활성화합니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utFilterAdd [<text>]:
+    trigger:
+        if player is op:
+            if arg 1 is not set:
+                message "&c&o필터를 설정해주세요."
+                exit
+
+            loop {filter::*}:
+                if arg 1 is loop-value:
+                    message "&c&o이미 등록된 필터입니다."
+                    exit
+            
+            add arg 1 to {filter::*}
+            message "&a&o%arg 1%을 필터링합니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utFilterDelete:
+    trigger:
+        if player is op:
+            delete {filter::*}
+            message "&c&o모든 필터를 제거합니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utFilterRemove [<text>]:
+    trigger:
+        if player is op:
+            if arg 1 is not set:
+                message "&c&o제거할 필터를 입력하세요."
+                exit
+
+            loop {filter::*}:
+                if arg 1 is loop-value:
+                    remove arg 1 from {filter::*}
+                    message "&c&o%arg 1%제거됨."
+                    exit
+                
+            message "&c&o존재하지 않는 필터입니다."
+        else:
+            message "&c&oOP required"
+
+
+
+command /utFilterList:
+    trigger:
+        if player is op:
+            message " "
+            loop {filter::*}:
+                message "%loop-value%"
+            
+            message " "
+        else:
+            message "&c&oOP required"
+
+
+
+command /utClearChat:
+    trigger:
+        if player is op:
+            loop 36 times:
+                message " "
+        else:
+            message "&c&oOP required"
+
+
+
+command /utDrain [<integer>]:
+    trigger:
+        if player is op:
+            if arg 1 > 100:
+                message "&c&o100 이하의 범위를 설정하세요."
+                exit
+            
+            if player's held item is 0 air:
+                message "&c&o삭제할 블록을 주 손에 들어야합니다."
+                exit
+
+            if {drainWorking::%player's uuid%} is not set:
+                set {drainWorking::%player's uuid%} to true
+
+                if 1 of player's held item is a block:
+                    set {_destBlock::%player's uuid%} to 1 of player's held item
+                    set {_originPos::%player's uuid%} to player's location
+                else:
+                    if 1 of player's held item is a water bucket:
+                        set {_destBlock::%player's uuid%} to water
+                        set {_originPos::%player's uuid%} to player's location
+                    else if 1 of player's held item is a lava bucket:
+                        set {_destBlock::%player's uuid%} to lava
+                        set {_originPos::%player's uuid%} to player's location
+                    else:
+                        message "&c&o[ %1 of player's held item% ] 올바른 대상이 아닙니다."
+                        exit
+
+                set {_throttle} to 0
+                loop all blocks in radius arg 1 around {_originPos::%player's uuid%}:
+                    if type of loop-block is type of {_destBlock::%player's uuid%}:
+                        delete loop-block
+                        add 1 to {_throttle}
+                        if {_throttle} > 300:
+                            set {_throttle} to 0
+                            wait for 1 tick
+
+                delete {drainWorking::%player's uuid%}
+                message "&a반경 %arg 1%블럭 안의 %{_destBlock::%player's uuid%}%을 삭제했습니다."
+            else:
+                message "&c&oUtDrain 작업이 진행중입니다."
+        else:
+            message "&c&oOP required"
